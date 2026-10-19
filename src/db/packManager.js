@@ -196,6 +196,124 @@ export async function undoSpokenInRealLife(sentenceId) {
 }
 
 /**
+ * Creates a new sentence or updates an existing sentence in Dexie.
+ * If `captureId` is provided, marks that quick capture as processed in the same transaction.
+ */
+export async function saveSentence(sentenceInput, captureId = null) {
+  const profile = (await db.user_profile.get('default')) || DEFAULT_PROFILE;
+  const shortLang = getShortLangCode(profile.source_lang);
+  const now = new Date().toISOString();
+
+  const id =
+    sentenceInput.id ||
+    `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+  const existing = sentenceInput.id ? await db.sentences.get(sentenceInput.id) : null;
+
+  const targetText = (sentenceInput.target_text || '').trim();
+  const sourceText = (sentenceInput.source_text || '').trim();
+
+  if (!targetText || !sourceText) {
+    throw new Error('Both the Dutch sentence and translation are required.');
+  }
+
+  const mergedTranslations = {
+    ...(existing?.translations || {}),
+    ...(sentenceInput.translations || {}),
+    [shortLang]: sourceText
+  };
+
+  // If user didn't have 'en' fallback set yet and is in 'en', or if new card, ensure fallback exists
+  if (!mergedTranslations.en && shortLang === 'en') {
+    mergedTranslations.en = sourceText;
+  }
+
+  const record = {
+    id,
+    pack_id: existing?.pack_id || sentenceInput.pack_id || 'custom',
+    target_text: targetText,
+    source_text: sourceText,
+    translations: mergedTranslations,
+    category: (sentenceInput.category || 'General').trim() || 'General',
+    checkpoint_id: sentenceInput.checkpoint_id || existing?.checkpoint_id || 'any',
+    notes: (sentenceInput.notes ?? existing?.notes ?? '').trim(),
+    times_spoken_irl: existing?.times_spoken_irl ?? sentenceInput.times_spoken_irl ?? 0,
+    mastery_level: existing?.mastery_level ?? sentenceInput.mastery_level ?? 0,
+    in_daily_queue:
+      typeof sentenceInput.in_daily_queue === 'number'
+        ? sentenceInput.in_daily_queue
+        : existing?.in_daily_queue ?? 0,
+    last_practiced: existing?.last_practiced ?? null,
+    created_at: existing?.created_at || now
+  };
+
+  await db.transaction('rw', db.sentences, db.quick_captures, async () => {
+    await db.sentences.put(record);
+    if (captureId) {
+      await db.quick_captures.update(captureId, {
+        processed: true,
+        converted_sentence_id: id
+      });
+    }
+  });
+
+  return record;
+}
+
+/**
+ * Deletes a sentence card from the local database.
+ */
+export async function deleteSentence(sentenceId) {
+  if (!sentenceId) return;
+  await db.sentences.delete(sentenceId);
+}
+
+/**
+ * Toggles whether a sentence is pinned in Today's Daily Queue.
+ */
+export async function toggleDailyQueueMembership(sentenceId) {
+  const sentence = await db.sentences.get(sentenceId);
+  if (!sentence) return null;
+  const nextFlag = sentence.in_daily_queue === 1 ? 0 : 1;
+  await db.sentences.update(sentenceId, { in_daily_queue: nextFlag });
+  return nextFlag === 1;
+}
+
+/**
+ * Logs a fast 10-second Quick Capture note during a shift.
+ */
+export async function addQuickCapture(rawText) {
+  const trimmed = (rawText || '').trim();
+  if (!trimmed) return null;
+
+  const capture = {
+    id: `cap-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    raw_text: trimmed,
+    created_at: new Date().toISOString(),
+    processed: false
+  };
+
+  await db.quick_captures.put(capture);
+  return capture;
+}
+
+/**
+ * Deletes a quick capture note by ID.
+ */
+export async function deleteQuickCapture(captureId) {
+  if (!captureId) return;
+  await db.quick_captures.delete(captureId);
+}
+
+/**
+ * Updates the processed status of a quick capture note.
+ */
+export async function setQuickCaptureProcessed(captureId, processed = true) {
+  if (!captureId) return;
+  await db.quick_captures.update(captureId, { processed: Boolean(processed) });
+}
+
+/**
  * Exports the entire local Dexie database (user_profile, sentences, quick_captures)
  * into a structured JSON object and triggers a downloadable .json backup file.
  */

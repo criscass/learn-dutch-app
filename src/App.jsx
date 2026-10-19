@@ -1,17 +1,33 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Database, Globe, VolumeX, Wrench } from 'lucide-react';
+import {
+  Database,
+  Globe,
+  VolumeX,
+  Wrench,
+  Sparkles,
+  BookOpen,
+  Plus
+} from 'lucide-react';
 import { db } from './db/database';
 import { initializeDatabase, switchSourceLanguage } from './db/packManager';
 import { ttsService } from './services/ttsService';
 import { SUPPORTED_LANGUAGES } from './config/languages';
 import DailyQueueView from './components/DailyQueueView';
+import LibraryView from './components/LibraryView';
 import DataBackupModal from './components/DataBackupModal';
+import SentenceFormModal from './components/SentenceFormModal';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [ttsState, setTtsState] = useState(ttsService.activeState);
+  const [activeView, setActiveView] = useState('daily'); // 'daily' | 'library'
   const [isBackupOpen, setIsBackupOpen] = useState(false);
+
+  // Add / Edit / Convert Sentence Modal State
+  const [isSentenceModalOpen, setIsSentenceModalOpen] = useState(false);
+  const [editingSentence, setEditingSentence] = useState(null);
+  const [captureToConvert, setCaptureToConvert] = useState(null);
 
   useEffect(() => {
     initializeDatabase()
@@ -34,7 +50,11 @@ export default function App() {
     []
   );
   const allSentences = useLiveQuery(() => db.sentences.toArray(), []);
-  const capturesCount = useLiveQuery(() => db.quick_captures.count(), [], 0);
+  const allCaptures = useLiveQuery(
+    () => db.quick_captures.orderBy('created_at').reverse().toArray(),
+    [],
+    []
+  );
 
   const currentLang = profile?.source_lang || 'en-US';
 
@@ -47,12 +67,51 @@ export default function App() {
     SUPPORTED_LANGUAGES.find((l) => l.code === currentLang) ||
     SUPPORTED_LANGUAGES[0];
 
-  const masteredCount = (allSentences || []).filter(
-    (s) => (s.times_spoken_irl || 0) >= 3
-  ).length;
+  const masteredCount = useMemo(
+    () =>
+      (allSentences || []).filter((s) => (s.times_spoken_irl || 0) >= 3).length,
+    [allSentences]
+  );
+
+  const existingCategories = useMemo(
+    () =>
+      Array.from(
+        new Set((allSentences || []).map((s) => s.category).filter(Boolean))
+      ),
+    [allSentences]
+  );
+
+  const pendingCapturesCount = useMemo(
+    () => (allCaptures || []).filter((c) => !c.processed).length,
+    [allCaptures]
+  );
+
+  const handleOpenAddSentence = () => {
+    setEditingSentence(null);
+    setCaptureToConvert(null);
+    setIsSentenceModalOpen(true);
+  };
+
+  const handleOpenEditSentence = (sentence) => {
+    setEditingSentence(sentence);
+    setCaptureToConvert(null);
+    setIsSentenceModalOpen(true);
+  };
+
+  const handleConvertCapture = (capture) => {
+    setEditingSentence(null);
+    setCaptureToConvert(capture);
+    setIsSentenceModalOpen(true);
+  };
+
+  const handleCloseSentenceModal = () => {
+    setIsSentenceModalOpen(false);
+    setEditingSentence(null);
+    setCaptureToConvert(null);
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col max-w-md mx-auto border-x border-slate-900/80">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col max-w-md mx-auto border-x border-slate-900/80 relative">
       {/* Top App Bar */}
       <header className="sticky top-0 z-30 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
@@ -103,7 +162,9 @@ export default function App() {
             title="Switch prompt language (English / Italiano)"
           >
             <Globe className="w-3.5 h-3.5 text-orange-400" />
-            <span>{activeLangMeta.flag} {activeLangMeta.shortCode.toUpperCase()}</span>
+            <span>
+              {activeLangMeta.flag} {activeLangMeta.shortCode.toUpperCase()}
+            </span>
           </button>
         </div>
       </header>
@@ -113,17 +174,98 @@ export default function App() {
         {!isReady || !dailySentences || !allSentences ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400">
             <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin mb-3" />
-            <p className="text-sm font-medium">Loading offline workplace database...</p>
+            <p className="text-sm font-medium">
+              Loading offline workplace database...
+            </p>
           </div>
-        ) : (
+        ) : activeView === 'daily' ? (
           <DailyQueueView
             dailySentences={dailySentences}
             allSentences={allSentences}
+            captures={allCaptures}
             profile={profile}
             ttsState={ttsState}
+            onAddSentence={handleOpenAddSentence}
+            onEditSentence={handleOpenEditSentence}
+            onConvertCapture={handleConvertCapture}
+            onOpenLibrary={() => setActiveView('library')}
+          />
+        ) : (
+          <LibraryView
+            allSentences={allSentences}
+            profile={profile}
+            ttsState={ttsState}
+            onAddSentence={handleOpenAddSentence}
+            onEditSentence={handleOpenEditSentence}
           />
         )}
       </main>
+
+      {/* Thumb-Friendly Bottom Navigation Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-30 max-w-md mx-auto bg-slate-950/95 backdrop-blur-md border-t border-slate-800/90 px-4 py-2">
+        <div className="grid grid-cols-3 items-center gap-2">
+          {/* Today's Shift Tab */}
+          <button
+            type="button"
+            onClick={() => setActiveView('daily')}
+            className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-colors cursor-pointer relative ${
+              activeView === 'daily'
+                ? 'text-orange-400 font-bold'
+                : 'text-slate-400 hover:text-slate-200 font-medium'
+            }`}
+          >
+            <div className="relative">
+              <Sparkles className="w-5 h-5" />
+              {pendingCapturesCount > 0 && (
+                <span className="absolute -top-1 -right-2.5 min-w-4 h-4 px-1 rounded-full bg-amber-500 text-slate-950 text-[10px] font-extrabold flex items-center justify-center">
+                  {pendingCapturesCount}
+                </span>
+              )}
+            </div>
+            <span className="text-[11px] mt-0.5">Today&apos;s Shift</span>
+          </button>
+
+          {/* Center Quick Add Sentence Button */}
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={handleOpenAddSentence}
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-2xl bg-orange-600 hover:bg-orange-500 active:scale-95 text-white font-bold text-xs shadow-lg shadow-orange-600/30 transition-all cursor-pointer"
+              title="Add new workplace sentence"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Card</span>
+            </button>
+          </div>
+
+          {/* Library / Dictionary Tab */}
+          <button
+            type="button"
+            onClick={() => setActiveView('library')}
+            className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-colors cursor-pointer ${
+              activeView === 'library'
+                ? 'text-orange-400 font-bold'
+                : 'text-slate-400 hover:text-slate-200 font-medium'
+            }`}
+          >
+            <BookOpen className="w-5 h-5" />
+            <span className="text-[11px] mt-0.5">
+              Library ({allSentences?.length || 0})
+            </span>
+          </button>
+        </div>
+      </nav>
+
+      {/* Add / Edit / Convert Sentence Modal */}
+      <SentenceFormModal
+        isOpen={isSentenceModalOpen}
+        onClose={handleCloseSentenceModal}
+        initialSentence={editingSentence}
+        captureToConvert={captureToConvert}
+        existingCategories={existingCategories}
+        profile={profile}
+        ttsState={ttsState}
+      />
 
       {/* Local Database Export / Import Modal */}
       <DataBackupModal
@@ -131,7 +273,7 @@ export default function App() {
         onClose={() => setIsBackupOpen(false)}
         sentencesCount={allSentences?.length || 0}
         masteredCount={masteredCount}
-        capturesCount={capturesCount}
+        capturesCount={allCaptures?.length || 0}
       />
     </div>
   );

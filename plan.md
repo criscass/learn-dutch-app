@@ -86,12 +86,12 @@ src/
 *   Build the main "Daily Queue" Home Screen view.
 *   Implement "Export Data as JSON" and "Import Data" (`DataBackupModal.jsx` + `packManager.js`) so users can back up and restore their full local database (or merge progress) anytime.
 
-### Phase 2: Data Input, Quick Capture & Library (Current Focus)
+### Phase 2: Data Input, Quick Capture & Library (Completed)
 *   Build the "Add / Edit Sentence" form with inline TTS testing and dynamic category selection.
 *   Implement the "Quick Capture" inbox on the home screen for fast 10-second logging during a busy shift, plus a workflow to convert captures into full flashcards.
 *   Create a Library/Dictionary view with category and mastery filtering.
 
-### Phase 3: Commute Mode & Shift Checkpoints
+### Phase 3: Commute Mode & Shift Checkpoints (Current Focus)
 *   Build the "Commute Mode" hands-free audio player interface with `wakeLockService.js` integration to loop through the daily queue (*Source Language -> Pause -> Dutch 1.0x -> Dutch 0.75x*).
 *   Implement configurable Shift Checkpoints and notification scheduling (Capacitor Local Notifications for Android APK + Web/Calendar reminders for iOS PWA).
 

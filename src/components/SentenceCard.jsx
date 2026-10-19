@@ -1,7 +1,20 @@
 import React from 'react';
-import { Volume2, Turtle, CheckCircle2, MessageCircle, RotateCcw, Info } from 'lucide-react';
+import {
+  Volume2,
+  Turtle,
+  CheckCircle2,
+  MessageCircle,
+  RotateCcw,
+  Info,
+  Pencil,
+  Sparkles
+} from 'lucide-react';
 import { ttsService } from '../services/ttsService';
-import { logSpokenInRealLife, undoSpokenInRealLife } from '../db/packManager';
+import {
+  logSpokenInRealLife,
+  undoSpokenInRealLife,
+  toggleDailyQueueMembership
+} from '../db/packManager';
 
 const CATEGORY_COLORS = {
   'Arrival & Handover': 'bg-blue-500/15 text-blue-300 border-blue-500/30',
@@ -11,7 +24,14 @@ const CATEGORY_COLORS = {
   'Small Talk & Breaks': 'bg-pink-500/15 text-pink-300 border-pink-500/30'
 };
 
-export default function SentenceCard({ sentence, ttsState, sourceLang = 'en-US', index }) {
+export default function SentenceCard({
+  sentence,
+  ttsState,
+  sourceLang = 'en-US',
+  index,
+  onEdit,
+  showQueueToggle = false
+}) {
   const isPlayingNormal =
     ttsState.isPlaying &&
     ttsState.sentenceId === sentence.id &&
@@ -31,6 +51,7 @@ export default function SentenceCard({ sentence, ttsState, sourceLang = 'en-US',
 
   const timesSpoken = sentence.times_spoken_irl || 0;
   const isMastered = timesSpoken >= 3;
+  const isInDailyQueue = sentence.in_daily_queue === 1;
 
   const badgeStyle =
     CATEGORY_COLORS[sentence.category] ||
@@ -74,6 +95,11 @@ export default function SentenceCard({ sentence, ttsState, sourceLang = 'en-US',
     await undoSpokenInRealLife(sentence.id);
   };
 
+  const handleToggleQueue = async (e) => {
+    e.stopPropagation();
+    await toggleDailyQueueMembership(sentence.id);
+  };
+
   return (
     <article
       className={`rounded-2xl border p-4 transition-all ${
@@ -84,7 +110,7 @@ export default function SentenceCard({ sentence, ttsState, sourceLang = 'en-US',
     >
       {/* Top Meta Row */}
       <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {typeof index === 'number' && (
             <span className="w-6 h-6 rounded-full bg-slate-800 text-slate-400 text-xs font-bold flex items-center justify-center border border-slate-700">
               {index + 1}
@@ -93,23 +119,60 @@ export default function SentenceCard({ sentence, ttsState, sourceLang = 'en-US',
           <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${badgeStyle}`}>
             {sentence.category}
           </span>
+          {sentence.pack_id === 'custom' && (
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-300 border border-orange-500/30">
+              Custom
+            </span>
+          )}
         </div>
 
-        {/* Real-World Spoken Progress Dots */}
-        <div className="flex items-center gap-1.5" title="Spoken in real life (3x = Mastered)">
-          {[1, 2, 3].map((step) => (
-            <span
-              key={step}
-              className={`w-2.5 h-2.5 rounded-full transition-colors ${
-                timesSpoken >= step
-                  ? 'bg-emerald-400 shadow-xs shadow-emerald-400/50'
-                  : 'bg-slate-700'
+        {/* Right Side Controls: Spoken IRL Dots + Queue Toggle + Edit */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1" title="Spoken in real life (3x = Mastered)">
+            {[1, 2, 3].map((step) => (
+              <span
+                key={step}
+                className={`w-2 h-2 rounded-full transition-colors ${
+                  timesSpoken >= step
+                    ? 'bg-emerald-400 shadow-xs shadow-emerald-400/50'
+                    : 'bg-slate-700'
+                }`}
+              />
+            ))}
+            <span className="text-[11px] font-semibold text-slate-400 ml-0.5">
+              {timesSpoken}/3
+            </span>
+          </div>
+
+          {showQueueToggle && (
+            <button
+              type="button"
+              onClick={handleToggleQueue}
+              className={`p-1.5 rounded-lg border text-xs transition-colors cursor-pointer ${
+                isInDailyQueue
+                  ? 'bg-orange-500/20 border-orange-500/40 text-orange-300'
+                  : 'bg-slate-800/80 border-slate-700/80 text-slate-400 hover:text-slate-200'
               }`}
-            />
-          ))}
-          <span className="text-xs font-semibold text-slate-400 ml-1">
-            {timesSpoken}/3 IRL
-          </span>
+              title={
+                isInDailyQueue
+                  ? "Pinned in Today's Queue (tap to remove)"
+                  : "Add to Today's Shift Queue"
+              }
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {onEdit && (
+            <button
+              type="button"
+              onClick={() => onEdit(sentence)}
+              className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700/80 transition-colors cursor-pointer"
+              title="Edit sentence"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
