@@ -1,0 +1,8 @@
+{
+  "appId": "com.dutchworkday.companion",
+  "appName": "Dutch Workday Companion",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

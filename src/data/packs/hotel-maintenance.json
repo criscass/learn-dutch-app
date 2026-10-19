@@ -1,0 +1,577 @@
+{
+  "packId": "hotel-maintenance",
+  "title": {
+    "en": "Hotel Maintenance & Technical Service",
+    "it": "Manutenzione Alberghiera & Servizio Tecnico"
+  },
+  "description": {
+    "en": "50 essential workplace sentences for hotel maintenance technicians working with housekeeping, front desk, and technical colleagues.",
+    "it": "50 frasi essenziali sul lavoro per tecnici della manutenzione alberghiera che collaborano con housekeeping, reception e colleghi tecnici."
+  },
+  "categories": [
+    "Arrival & Handover",
+    "Housekeeping",
+    "Tech & Repairs",
+    "Front Desk & Guests",
+    "Small Talk & Breaks"
+  ],
+  "defaultCheckpoints": [
+    { "id": "arrival", "label": "Arrival & Handover", "time": "08:55" },
+    { "id": "morning_rounds", "label": "Morning Rounds", "time": "10:30" },
+    { "id": "lunch", "label": "Lunch Break", "time": "12:30" },
+    { "id": "afternoon", "label": "Afternoon Check", "time": "15:00" },
+    { "id": "handover", "label": "End of Shift", "time": "16:45" }
+  ],
+  "sentences": [
+    {
+      "id": "hm-001",
+      "target_text": "Goedemorgen! Zijn er vandaag dringende storingen?",
+      "translations": {
+        "en": "Good morning! Are there any urgent malfunctions today?",
+        "it": "Buongiorno! Ci sono guasti urgenti oggi?"
+      },
+      "category": "Arrival & Handover",
+      "checkpoint_id": "arrival",
+      "notes": "'Storingen' = malfunctions/faults. Great way to start the morning briefing."
+    },
+    {
+      "id": "hm-002",
+      "target_text": "Ik begin eerst op de tweede verdieping.",
+      "translations": {
+        "en": "I am starting on the second floor first.",
+        "it": "Inizio prima al secondo piano."
+      },
+      "category": "Arrival & Handover",
+      "checkpoint_id": "arrival",
+      "notes": "'Verdieping' = floor/story."
+    },
+    {
+      "id": "hm-003",
+      "target_text": "Heb je de lijst met klussen voor vandaag?",
+      "translations": {
+        "en": "Do you have the list of jobs for today?",
+        "it": "Hai la lista dei lavori per oggi?"
+      },
+      "category": "Arrival & Handover",
+      "checkpoint_id": "arrival",
+      "notes": "'Klussen' = maintenance jobs/tasks."
+    },
+    {
+      "id": "hm-004",
+      "target_text": "Waar ligt de moersleutel van de werkplaats?",
+      "translations": {
+        "en": "Where is the wrench from the workshop?",
+        "it": "Dov'è la chiave inglese dell'officina?"
+      },
+      "category": "Arrival & Handover",
+      "checkpoint_id": "arrival",
+      "notes": "'Werkplaats' = workshop."
+    },
+    {
+      "id": "hm-005",
+      "target_text": "Ik heb de hoofdsleutel bij me.",
+      "translations": {
+        "en": "I have the master key with me.",
+        "it": "Ho il passepartout (chiave maestra) con me."
+      },
+      "category": "Arrival & Handover",
+      "checkpoint_id": "arrival",
+      "notes": "'Hoofdsleutel' or 'loper' is used for master key."
+    },
+    {
+      "id": "hm-006",
+      "target_text": "Welke kamers zijn nu al vrij?",
+      "translations": {
+        "en": "Which rooms are already vacant now?",
+        "it": "Quali stanze sono già libere adesso?"
+      },
+      "category": "Housekeeping",
+      "checkpoint_id": "morning_rounds",
+      "notes": "Ask housekeeping before entering rooms for repairs."
+    },
+    {
+      "id": "hm-007",
+      "target_text": "Is kamer tweehonderdvier al uitgecheckt?",
+      "translations": {
+        "en": "Has room 204 checked out already?",
+        "it": "La camera 204 ha già fatto il check-out?"
+      },
+      "category": "Housekeeping",
+      "checkpoint_id": "morning_rounds",
+      "notes": "204 = tweehonderdvier."
+    },
+    {
+      "id": "hm-008",
+      "target_text": "Ik ben over tien minuten klaar in deze kamer.",
+      "translations": {
+        "en": "I will be finished in this room in ten minutes.",
+        "it": "Finisco in questa stanza tra dieci minuti."
+      },
+      "category": "Housekeeping",
+      "checkpoint_id": "morning_rounds",
+      "notes": "Useful so housekeeping knows when they can clean."
+    },
+    {
+      "id": "hm-009",
+      "target_text": "Kun je kamer driehonderdtien eerst schoonmaken?",
+      "translations": {
+        "en": "Can you clean room 310 first?",
+        "it": "Puoi pulire prima la camera 310?"
+      },
+      "category": "Housekeeping",
+      "checkpoint_id": "morning_rounds",
+      "notes": "310 = driehonderdtien."
+    },
+    {
+      "id": "hm-010",
+      "target_text": "Let op, de vloer in de badkamer is nog nat.",
+      "translations": {
+        "en": "Watch out, the floor in the bathroom is still wet.",
+        "it": "Attenzione, il pavimento del bagno è ancora bagnato."
+      },
+      "category": "Housekeeping",
+      "checkpoint_id": "morning_rounds",
+      "notes": "'Let op' = watch out / pay attention."
+    },
+    {
+      "id": "hm-011",
+      "target_text": "Ik heb wat stof gemaakt, sorry! Ik zuig het even op.",
+      "translations": {
+        "en": "I made some dust, sorry! I'll vacuum it up quickly.",
+        "it": "Ho fatto un po' di polvere, scusa! Passo subito l'aspirapolvere."
+      },
+      "category": "Housekeeping",
+      "checkpoint_id": "morning_rounds",
+      "notes": "'Opzuigen' = to vacuum up."
+    },
+    {
+      "id": "hm-012",
+      "target_text": "De lamp bij het bed is kapot, ik heb hem vervangen.",
+      "translations": {
+        "en": "The lamp by the bed is broken, I replaced it.",
+        "it": "La lampada vicino al letto è rotta, l'ho sostituita."
+      },
+      "category": "Housekeeping",
+      "checkpoint_id": "morning_rounds",
+      "notes": "'Vervangen' = replaced."
+    },
+    {
+      "id": "hm-013",
+      "target_text": "De afstandsbediening heeft nieuwe batterijen nodig.",
+      "translations": {
+        "en": "The remote control needs new batteries.",
+        "it": "Il telecomando ha bisogno di batterie nuove."
+      },
+      "category": "Housekeeping",
+      "checkpoint_id": "morning_rounds",
+      "notes": "'Afstandsbediening' = remote control."
+    },
+    {
+      "id": "hm-014",
+      "target_text": "De kluis in de kast zit op slot en gaat niet open.",
+      "translations": {
+        "en": "The safe in the closet is locked and won't open.",
+        "it": "La cassaforte nell'armadio è bloccata e non si apre."
+      },
+      "category": "Housekeeping",
+      "checkpoint_id": "morning_rounds",
+      "notes": "'De kluis' = the safe."
+    },
+    {
+      "id": "hm-015",
+      "target_text": "Mag ik even je stofzuiger lenen?",
+      "translations": {
+        "en": "May I borrow your vacuum cleaner for a moment?",
+        "it": "Posso prendere in prestito il tuo aspirapolvere un attimo?"
+      },
+      "category": "Housekeeping",
+      "checkpoint_id": "morning_rounds",
+      "notes": "'Stofzuiger' = vacuum cleaner."
+    },
+    {
+      "id": "hm-016",
+      "target_text": "De verwarming in kamer honderdtwaalf doet het niet.",
+      "translations": {
+        "en": "The heating in room 112 is not working.",
+        "it": "Il riscaldamento nella camera 112 non funziona."
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "morning_rounds",
+      "notes": "'Doet het niet' = doesn't work (very natural Dutch)."
+    },
+    {
+      "id": "hm-017",
+      "target_text": "De airco lekt water op het tapijt.",
+      "translations": {
+        "en": "The air conditioner is leaking water onto the carpet.",
+        "it": "L'aria condizionata perde acqua sulla moquette."
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "morning_rounds",
+      "notes": "'Het tapijt' = the carpet."
+    },
+    {
+      "id": "hm-018",
+      "target_text": "De afvoer van de douche zit helemaal verstopt.",
+      "translations": {
+        "en": "The shower drain is completely clogged.",
+        "it": "Lo scarico della doccia è completamente intasato."
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "morning_rounds",
+      "notes": "'Verstopt' = clogged/blocked."
+    },
+    {
+      "id": "hm-019",
+      "target_text": "De kraan in de wastafel blijft druppelen.",
+      "translations": {
+        "en": "The faucet in the sink keeps dripping.",
+        "it": "Il rubinetto del lavandino continua a gocciolare."
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "morning_rounds",
+      "notes": "'De kraan' = tap/faucet; 'wastafel' = bathroom sink."
+    },
+    {
+      "id": "hm-020",
+      "target_text": "Ik moet het water op deze verdieping even afsluiten.",
+      "translations": {
+        "en": "I have to shut off the water on this floor for a moment.",
+        "it": "Devo chiudere l'acqua su questo piano per un momento."
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "morning_rounds",
+      "notes": "'Afsluiten' = shut off / close."
+    },
+    {
+      "id": "hm-021",
+      "target_text": "De stop is doorgeslagen in de meterkast.",
+      "translations": {
+        "en": "The fuse has blown in the breaker box.",
+        "it": "È saltato il salvavita/fusibile nel quadro elettrico."
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "afternoon",
+      "notes": "'Meterkast' = fuse/breaker cupboard."
+    },
+    {
+      "id": "hm-022",
+      "target_text": "Er is geen warm water op de vierde verdieping.",
+      "translations": {
+        "en": "There is no hot water on the fourth floor.",
+        "it": "Non c'è acqua calda al quarto piano."
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "afternoon",
+      "notes": "'Warm water' = hot water."
+    },
+    {
+      "id": "hm-023",
+      "target_text": "Ik moet een nieuw onderdeel bestellen voor de ketel.",
+      "translations": {
+        "en": "I need to order a new part for the boiler.",
+        "it": "Devo ordinare un pezzo nuovo per la caldaia."
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "afternoon",
+      "notes": "'Onderdeel' = spare part; 'de ketel' = the boiler."
+    },
+    {
+      "id": "hm-024",
+      "target_text": "Het kaartslot van de deur reageert niet.",
+      "translations": {
+        "en": "The keycard lock on the door is not responding.",
+        "it": "La serratura a scheda della porta non risponde."
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "afternoon",
+      "notes": "Very common hotel issue."
+    },
+    {
+      "id": "hm-025",
+      "target_text": "De deur sluit niet goed, ik ga het scharnier bijstellen.",
+      "translations": {
+        "en": "The door doesn't close properly, I will adjust the hinge.",
+        "it": "La porta non si chiude bene, vado a regolare la cerniera."
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "afternoon",
+      "notes": "'Het scharnier' = the hinge; 'bijstellen' = adjust."
+    },
+    {
+      "id": "hm-026",
+      "target_text": "Het raam kan niet meer dicht.",
+      "translations": {
+        "en": "The window won't close anymore.",
+        "it": "La finestra non si chiude più."
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "afternoon",
+      "notes": "'Dicht' = closed/shut."
+    },
+    {
+      "id": "hm-027",
+      "target_text": "Ik ga de siliconenkit in de douche vernieuwen.",
+      "translations": {
+        "en": "I am going to replace the silicone sealant in the shower.",
+        "it": "Vado a rifare il silicone nella doccia."
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "afternoon",
+      "notes": "'Kit' = caulk/sealant."
+    },
+    {
+      "id": "hm-028",
+      "target_text": "De douche mag pas morgen weer gebruikt worden.",
+      "translations": {
+        "en": "The shower can only be used again tomorrow.",
+        "it": "La doccia potrà essere usata di nuovo solo domani."
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "afternoon",
+      "notes": "Important after applying silicone sealant."
+    },
+    {
+      "id": "hm-029",
+      "target_text": "De lift staat stil tussen twee verdiepingen.",
+      "translations": {
+        "en": "The elevator is stuck between two floors.",
+        "it": "L'ascensore è bloccato tra due piani."
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "afternoon",
+      "notes": "'Staat stil' = is standing still / stuck."
+    },
+    {
+      "id": "hm-030",
+      "target_text": "We moeten de monteur van het liftbedrijf bellen.",
+      "translations": {
+        "en": "We need to call the technician from the elevator company.",
+        "it": "Dobbiamo chiamare il tecnico della ditta degli ascensori."
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "afternoon",
+      "notes": "'Monteur' = technician/installer."
+    },
+    {
+      "id": "hm-031",
+      "target_text": "Het brandalarm in de gang geeft een foutmelding.",
+      "translations": {
+        "en": "The fire alarm in the hallway is showing an error message.",
+        "it": "L'allarme antincendio nel corridoio dà un messaggio di errore."
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "afternoon",
+      "notes": "'Foutmelding' = error notification."
+    },
+    {
+      "id": "hm-032",
+      "target_text": "Kun je deze ladder even voor me vasthouden?",
+      "translations": {
+        "en": "Can you hold this ladder for me for a moment?",
+        "it": "Puoi tenermi ferma questa scala per un attimo?"
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "afternoon",
+      "notes": "'Vasthouden' = to hold steady."
+    },
+    {
+      "id": "hm-033",
+      "target_text": "De wc blijft doorlopen, ik vervang de vlotter.",
+      "translations": {
+        "en": "The toilet keeps running, I am replacing the float valve.",
+        "it": "Il water continua a scorrere, sostituisco il galleggiante."
+      },
+      "category": "Tech & Repairs",
+      "checkpoint_id": "afternoon",
+      "notes": "'Blijft doorlopen' = keeps running."
+    },
+    {
+      "id": "hm-034",
+      "target_text": "Kamer honderdvijf is weer helemaal in orde.",
+      "translations": {
+        "en": "Room 105 is completely fine again.",
+        "it": "La camera 105 è di nuovo tutto a posto."
+      },
+      "category": "Front Desk & Guests",
+      "checkpoint_id": "afternoon",
+      "notes": "'In orde' = in order / fixed."
+    },
+    {
+      "id": "hm-035",
+      "target_text": "Deze kamer kan vandaag niet verhuurd worden.",
+      "translations": {
+        "en": "This room cannot be rented out today.",
+        "it": "Questa camera non può essere affittata oggi."
+      },
+      "category": "Front Desk & Guests",
+      "checkpoint_id": "afternoon",
+      "notes": "Crucial phrase for the front desk ('receptie')."
+    },
+    {
+      "id": "hm-036",
+      "target_text": "De gast moet helaas naar een andere kamer verhuizen.",
+      "translations": {
+        "en": "Unfortunately, the guest has to move to another room.",
+        "it": "Purtroppo l'ospite deve spostarsi in un'altra stanza."
+      },
+      "category": "Front Desk & Guests",
+      "checkpoint_id": "afternoon",
+      "notes": "'Helaas' = unfortunately."
+    },
+    {
+      "id": "hm-037",
+      "target_text": "Pardon, technische dienst! Mag ik even binnenkomen?",
+      "translations": {
+        "en": "Excuse me, maintenance! May I come in for a moment?",
+        "it": "Permesso, servizio tecnico! Posso entrare un attimo?"
+      },
+      "category": "Front Desk & Guests",
+      "checkpoint_id": "morning_rounds",
+      "notes": "'Technische dienst' = maintenance department."
+    },
+    {
+      "id": "hm-038",
+      "target_text": "Ik kom even kijken naar de televisie.",
+      "translations": {
+        "en": "I'm here to take a quick look at the television.",
+        "it": "Vengo a dare un'occhiata alla televisione."
+      },
+      "category": "Front Desk & Guests",
+      "checkpoint_id": "morning_rounds",
+      "notes": "'Even kijken naar' = take a quick look at."
+    },
+    {
+      "id": "hm-039",
+      "target_text": "Het is opgelost! Alles werkt weer normaal.",
+      "translations": {
+        "en": "It is solved! Everything works normally again.",
+        "it": "È risolto! Tutto funziona di nuovo normalmente."
+      },
+      "category": "Front Desk & Guests",
+      "checkpoint_id": "afternoon",
+      "notes": "'Het is opgelost' = It's solved/fixed."
+    },
+    {
+      "id": "hm-040",
+      "target_text": "Zal ik de receptie bellen om het door te geven?",
+      "translations": {
+        "en": "Shall I call the front desk to let them know?",
+        "it": "Chiamo io la reception per avvisarli?"
+      },
+      "category": "Front Desk & Guests",
+      "checkpoint_id": "afternoon",
+      "notes": "'Doorgeven' = pass along information."
+    },
+    {
+      "id": "hm-041",
+      "target_text": "Ik ga even koffie halen, wil jij ook een kopje?",
+      "translations": {
+        "en": "I'm going to grab some coffee, do you want a cup too?",
+        "it": "Vado a prendere un caffè, ne vuoi una tazza anche tu?"
+      },
+      "category": "Small Talk & Breaks",
+      "checkpoint_id": "lunch",
+      "notes": "Classic Dutch workplace bonding phrase."
+    },
+    {
+      "id": "hm-042",
+      "target_text": "Hoe was je weekend? Heb je iets leuks gedaan?",
+      "translations": {
+        "en": "How was your weekend? Did you do anything fun?",
+        "it": "Com'è andato il weekend? Hai fatto qualcosa di bello?"
+      },
+      "category": "Small Talk & Breaks",
+      "checkpoint_id": "arrival",
+      "notes": "Great for Monday mornings."
+    },
+    {
+      "id": "hm-043",
+      "target_text": "Wat een regen vandaag op de fiets!",
+      "translations": {
+        "en": "What a lot of rain on the bike today!",
+        "it": "Quanta pioggia oggi in bici!"
+      },
+      "category": "Small Talk & Breaks",
+      "checkpoint_id": "arrival",
+      "notes": "Complaining about rain on the commute is peak Dutch small talk."
+    },
+    {
+      "id": "hm-044",
+      "target_text": "Ga je nu lunchen? Eet smakelijk!",
+      "translations": {
+        "en": "Are you going to have lunch now? Enjoy your meal!",
+        "it": "Vai a pranzare adesso? Buon appetito!"
+      },
+      "category": "Small Talk & Breaks",
+      "checkpoint_id": "lunch",
+      "notes": "'Eet smakelijk' = Buon appetito / Enjoy your meal."
+    },
+    {
+      "id": "hm-045",
+      "target_text": "Het is vandaag erg druk in het hotel.",
+      "translations": {
+        "en": "It is very busy in the hotel today.",
+        "it": "C'è molto movimento in hotel oggi."
+      },
+      "category": "Small Talk & Breaks",
+      "checkpoint_id": "lunch",
+      "notes": "'Erg druk' = very busy."
+    },
+    {
+      "id": "hm-046",
+      "target_text": "Kun je dat iets langzamer herhalen? Ik leer Nederlands.",
+      "translations": {
+        "en": "Can you repeat that a bit slower? I am learning Dutch.",
+        "it": "Puoi ripeterlo un po' più lentamente? Sto imparando l'olandese."
+      },
+      "category": "Small Talk & Breaks",
+      "checkpoint_id": "arrival",
+      "notes": "Keeps colleagues speaking Dutch to you instead of switching to English."
+    },
+    {
+      "id": "hm-047",
+      "target_text": "Hoe noem je dit gereedschap in het Nederlands?",
+      "translations": {
+        "en": "What do you call this tool in Dutch?",
+        "it": "Come si chiama questo attrezzo in olandese?"
+      },
+      "category": "Small Talk & Breaks",
+      "checkpoint_id": "lunch",
+      "notes": "'Gereedschap' = tool(s)."
+    },
+    {
+      "id": "hm-048",
+      "target_text": "Alle urgente klussen van vandaag zijn klaar.",
+      "translations": {
+        "en": "All urgent jobs for today are finished.",
+        "it": "Tutti i lavori urgenti di oggi sono finiti."
+      },
+      "category": "Arrival & Handover",
+      "checkpoint_id": "handover",
+      "notes": "Great for end-of-shift handover."
+    },
+    {
+      "id": "hm-049",
+      "target_text": "Ik heb alles opgeschreven in het logboek.",
+      "translations": {
+        "en": "I wrote everything down in the logbook.",
+        "it": "Ho scritto tutto nel registro."
+      },
+      "category": "Arrival & Handover",
+      "checkpoint_id": "handover",
+      "notes": "'Het logboek' = the logbook."
+    },
+    {
+      "id": "hm-050",
+      "target_text": "Ik ga naar huis, fijne avond en tot morgen!",
+      "translations": {
+        "en": "I'm heading home, have a nice evening and see you tomorrow!",
+        "it": "Vado a casa, buona serata e a domani!"
+      },
+      "category": "Arrival & Handover",
+      "checkpoint_id": "handover",
+      "notes": "'Fijne avond' = have a nice evening."
+    }
+  ]
+}
