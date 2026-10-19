@@ -24,6 +24,7 @@ This is NOT a generic language app. It is a highly tailored, offline-first tool 
 5.  **Real-World Tracking:** Flashcards are marked "Mastered" only after the user logs them as "Spoke to a Person" 3 times in real life.
 6.  **Quick Capture Inbox:** A fast 10-second text input to jot down broken phrases or situations encountered during the shift, to be translated and converted into flashcards later.
 7.  **Shift Checkpoints:** Contextual prompts (e.g., arrival, break, handover) based on the user's configured work schedule to trigger real-life practice.
+8.  **Offline Database Backup & Restore ("Export Data as JSON" & "Import Data"):** One-tap full local database export (`.json`) and import (supporting both safe progress-merging and full replacement, plus custom pack loading) alongside `navigator.storage.persist()` protection.
 
 ## 4. Database Schema Requirements (Dexie.js)
 Design the local storage around three core tables/stores:
@@ -66,25 +67,26 @@ src/
 │   └── packs/                # Pre-bundled JSON Job Packs (e.g., hotel-maintenance.json)
 ├── db/
 │   ├── database.js           # Dexie.js schema (user_profile, sentences, quick_captures)
-│   └── packManager.js        # Seeds, switches, imports, and exports JSON packs
+│   └── packManager.js        # Seeds, switches, imports, and exports JSON packs & full DB backups
 ├── services/
 │   ├── ttsService.js         # Hybrid TTS controller (Web Speech API + Capacitor fallback)
 │   ├── wakeLockService.js    # Screen WakeLock manager for Commute Mode
 │   ├── notificationService.js# Shift checkpoint scheduler (Native + Web fallback)
 │   └── queueAlgorithm.js     # Daily N selection algorithm (New, Working, Review)
-└── components/               # Daily Queue, Commute Player, Quick Capture, Library, Settings/Onboarding
+└── components/               # Daily Queue, Backup Modal, Commute Player, Quick Capture, Library, Settings
 ```
 
 ## 6. Development Roadmap (Iterative Sprints)
 
-### Phase 1: Core MVP, Multi-Pack DB & Hybrid Audio Engine (Current Focus)
+### Phase 1: Core MVP, Multi-Pack DB, Local Backup & Hybrid Audio Engine (Completed)
 *   Scaffold the Vite + React app, configure Tailwind CSS, and set up `vite-plugin-pwa` for one-tap mobile installation.
-*   Set up the Dexie.js database layer (`user_profile`, `sentences`, `quick_captures`) and `packManager.js`.
+*   Set up the Dexie.js database layer (`user_profile`, `sentences`, `quick_captures`) and `packManager.js` with persistent storage (`navigator.storage.persist()`).
 *   Create the initial `hotel-maintenance.json` pack with 50 hotel/maintenance sentences (including English and Italian translations for Dutch).
 *   Implement the hybrid `ttsService.js` (Web Speech API + Capacitor support) with dual-speed buttons (`1.0x` and `0.75x`) on a sentence card.
 *   Build the main "Daily Queue" Home Screen view.
+*   Implement "Export Data as JSON" and "Import Data" (`DataBackupModal.jsx` + `packManager.js`) so users can back up and restore their full local database (or merge progress) anytime.
 
-### Phase 2: Data Input, Quick Capture & Library
+### Phase 2: Data Input, Quick Capture & Library (Current Focus)
 *   Build the "Add / Edit Sentence" form with inline TTS testing and dynamic category selection.
 *   Implement the "Quick Capture" inbox on the home screen for fast 10-second logging during a busy shift, plus a workflow to convert captures into full flashcards.
 *   Create a Library/Dictionary view with category and mastery filtering.
@@ -96,7 +98,7 @@ src/
 ### Phase 4: Algorithm, Onboarding, Pack Sharing & Analytics
 *   Implement the Daily Queue Algorithm (selecting a configurable mix of New, Working, and Review sentences per workday).
 *   Build the Onboarding / Settings screen to configure Source Language, Workdays, Shift Checkpoints, and active Job Pack.
-*   Add JSON Pack Import/Export so friends/family can load new jobs or languages and back up their progress.
+*   Expand JSON Pack Sharing so friends/family can easily switch or share custom job packs.
 *   Build the Weekly Review stats screen.
 
 ## 7. Immediate Action Item for AI

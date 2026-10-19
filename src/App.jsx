@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Globe, VolumeX, Wrench } from 'lucide-react';
+import { Database, Globe, VolumeX, Wrench } from 'lucide-react';
 import { db } from './db/database';
 import { initializeDatabase, switchSourceLanguage } from './db/packManager';
 import { ttsService } from './services/ttsService';
 import { SUPPORTED_LANGUAGES } from './config/languages';
 import DailyQueueView from './components/DailyQueueView';
+import DataBackupModal from './components/DataBackupModal';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [ttsState, setTtsState] = useState(ttsService.activeState);
+  const [isBackupOpen, setIsBackupOpen] = useState(false);
 
   useEffect(() => {
     initializeDatabase()
@@ -32,6 +34,7 @@ export default function App() {
     []
   );
   const allSentences = useLiveQuery(() => db.sentences.toArray(), []);
+  const capturesCount = useLiveQuery(() => db.quick_captures.count(), [], 0);
 
   const currentLang = profile?.source_lang || 'en-US';
 
@@ -43,6 +46,10 @@ export default function App() {
   const activeLangMeta =
     SUPPORTED_LANGUAGES.find((l) => l.code === currentLang) ||
     SUPPORTED_LANGUAGES[0];
+
+  const masteredCount = (allSentences || []).filter(
+    (s) => (s.times_spoken_irl || 0) >= 3
+  ).length;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col max-w-md mx-auto border-x border-slate-900/80">
@@ -77,6 +84,17 @@ export default function App() {
             </button>
           )}
 
+          {/* Export / Import Backup Modal Trigger */}
+          <button
+            type="button"
+            onClick={() => setIsBackupOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
+            title="Backup or Restore Local Database (JSON)"
+          >
+            <Database className="w-3.5 h-3.5 text-orange-400" />
+            <span>Backup</span>
+          </button>
+
           {/* Quick Source Language Switcher (EN <-> IT) */}
           <button
             type="button"
@@ -106,6 +124,15 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Local Database Export / Import Modal */}
+      <DataBackupModal
+        isOpen={isBackupOpen}
+        onClose={() => setIsBackupOpen(false)}
+        sentencesCount={allSentences?.length || 0}
+        masteredCount={masteredCount}
+        capturesCount={capturesCount}
+      />
     </div>
   );
 }

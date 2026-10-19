@@ -11,6 +11,10 @@ export const BUILT_IN_PACKS = {
  * and seeds the initial job pack if no sentences exist yet.
  */
 export async function initializeDatabase() {
+  if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persist) {
+    navigator.storage.persist().catch(() => {});
+  }
+
   let profile = await db.user_profile.get('default');
   if (!profile) {
     profile = { ...DEFAULT_PROFILE };
@@ -190,3 +194,183 @@ export async function undoSpokenInRealLife(sentenceId) {
 
   return { newCount, isMastered: newCount >= 3 };
 }
+
+/**
+ * Exports the entire local Dexie database (user_profile, sentences, quick_captures)
+ * into a structured JSON object and triggers a downloadable .json backup file.
+ */
+export async function exportDatabaseAsJson() {
+  const [userProfile, sentences, quickCaptures] = await Promise.all([
+    db.user_profile.toArray(),
+    db.sentences.toArray(),
+    db.quick_captures.toArray()
+  ]);
+
+  const backupPayload = {
+    app: 'DutchWorkdayCompanion',
+    schema_version: 1,
+    exported_at: new Date().toISOString(),
+    data: {
+      user_profile: userProfile,
+      sentences,
+      quick_captures: quickCaptures
+    }
+  };
+
+  const jsonString = JSON.stringify(backupPayload, null, 2);
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const filename = `dutch-workday-backup-${dateStr}.json`;
+
+  const blob = new Blob([jsonString], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  return {
+    filename,
+    sentencesCount: sentences.length,
+    capturesCount: quickCaptures.length
+  };
+}
+
+/**
+ * Imports data from a JSON backup file (or custom pack JSON) into Dexie.
+ * @param {string|object} rawInput - Parsed JSON object or raw JSON string
+ * @param {object} options - { mode: 'merge' | 'replace' }
+ */
+export async function importDatabaseFromJson(rawInput, options = { mode: 'merge' }) {
+  const parsed = typeof rawInput === 'string' ? JSON.parse(rawInput) : rawInput;
+
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('Invalid JSON file format.');
+  }
+
+  // Support both full database backup format ({ data: { user_profile, sentences, quick_captures } })
+  // and standalone job pack format ({ pack_id, sentences: [...] })
+  const isFullBackup = Boolean(parsed.data && Array.isArray(parsed.data.sentences));
+  const isJobPack = Boolean(!isFullBackup && Array.isArray(parsed.sentences));
+
+  if (!isFullBackup && !isJobPack) {
+    throw new Error('Unrecognized JSON structure. Expected a Dutch Workday backup or sentence pack.');
+  }
+
+  const mode = options?.mode || 'merge';
+  let sentencesImported = 0;
+  let capturesImported = 0;
+  let profileRestored = false;
+
+  await db.transaction('rw', db.user_profile, db.sentences, db.quick_captures, async () => {
+    if (mode === 'replace' && isFullBackup) {
+      await Promise.all([
+        db.user_profile.clear(),
+        db.sentences.clear(),
+        db.quick_captures.clear()
+      ]);
+    }
+
+    if (isFullBackup) {
+      const { user_profile: profiles = [], sentences = [], quick_captures: captures = [] } = parsed.data;
+
+      if (Array.isArray(profiles) && profiles.length > 0) {
+        await db.user_profile.bulkPut(profiles);
+        profileRestored = true;
+      }
+
+      if (Array.isArray(sentences) && sentences.length > 0) {
+        if (mode === 'merge') {
+          // When merging, preserve the higher spoken count / mastery if a sentence exists locally
+          const existingMap = new Map(
+            (await db.sentences.toArray()).map((s) => [s.id, s])
+          );
+          const mergedSentences = sentences.map((incoming) => {
+            const existing = existingMap.get(incoming.id);
+            if (!existing) return incoming;
+            const bestSpoken = Math.max(
+              existing.times_spoken_irl || 0,
+              incoming.times_spoken_irl || 0
+            );
+            const bestMastery = Math.max(
+              existing.mastery_level || 0,
+              incoming.mastery_level || 0,
+              bestSpoken >= 3 ? 5 : bestSpoken
+            );
+            return {
+              ...existing,
+              ...incoming,
+              times_spoken_irl: bestSpoken,
+              mastery_level: bestMastery,
+              last_practiced:
+                incoming.last_practiced && existing.last_practiced
+                  ? incoming.last_practiced > existing.last_practiced
+                    ? incoming.last_practiced
+                    : existing.last_practiced
+                  : incoming.last_practiced || existing.last_practiced
+            };
+          });
+          await db.sentences.bulkPut(mergedSentences);
+        } else {
+          await db.sentences.bulkPut(sentences);
+        }
+        sentencesImported = sentences.length;
+      }
+
+      if (Array.isArray(captures) && captures.length > 0) {
+        await db.quick_captures.bulkPut(captures);
+        capturesImported = captures.length;
+      }
+    } else if (isJobPack) {
+      const profile = (await db.user_profile.get('default')) || DEFAULT_PROFILE;
+      const shortLang = getShortLangCode(profile.source_lang);
+      const packId = parsed.pack_id || 'custom-pack';
+      const now = new Date().toISOString();
+
+      const existingMap = new Map(
+        (await db.sentences.toArray()).map((s) => [s.id, s])
+      );
+
+      const formattedSentences = parsed.sentences.map((s, idx) => {
+        const id = s.id || `${packId}-${idx + 1}`;
+        const existing = existingMap.get(id);
+        return {
+          id,
+          pack_id: s.pack_id || packId,
+          source_text:
+            s.source_text || s.translations?.[shortLang] || s.translations?.en || '',
+          translations: s.translations || {},
+          target_text: s.target_text,
+          category: s.category || 'General',
+          checkpoint_id: s.checkpoint_id || 'any',
+          times_spoken_irl: existing?.times_spoken_irl ?? s.times_spoken_irl ?? 0,
+          mastery_level: existing?.mastery_level ?? s.mastery_level ?? 0,
+          in_daily_queue: existing?.in_daily_queue ?? 0,
+          last_practiced: existing?.last_practiced ?? s.last_practiced ?? null,
+          created_at: existing?.created_at ?? s.created_at ?? now,
+          notes: s.notes || existing?.notes || ''
+        };
+      });
+
+      await db.sentences.bulkPut(formattedSentences);
+      sentencesImported = formattedSentences.length;
+    }
+  });
+
+  // Ensure daily queue has items after import
+  const queueCount = await db.sentences.where('in_daily_queue').equals(1).count();
+  if (queueCount === 0) {
+    const profile = await db.user_profile.get('default');
+    await refreshDailyQueue(profile?.daily_goal_count || 5, true);
+  }
+
+  return {
+    sentencesImported,
+    capturesImported,
+    profileRestored,
+    mode
+  };
+}
+
