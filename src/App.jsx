@@ -7,7 +7,11 @@ import {
   Wrench,
   Sparkles,
   BookOpen,
-  Plus
+  Plus,
+  Menu,
+  X,
+  Tag,
+  ChevronRight
 } from 'lucide-react';
 import { db } from './db/database';
 import { initializeDatabase, switchSourceLanguage } from './db/packManager';
@@ -17,12 +21,15 @@ import DailyQueueView from './components/DailyQueueView';
 import LibraryView from './components/LibraryView';
 import DataBackupModal from './components/DataBackupModal';
 import SentenceFormModal from './components/SentenceFormModal';
+import CategoryManagerModal from './components/CategoryManagerModal';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [ttsState, setTtsState] = useState(ttsService.activeState);
   const [activeView, setActiveView] = useState('daily'); // 'daily' | 'library'
+  const [isBurgerOpen, setIsBurgerOpen] = useState(false);
   const [isBackupOpen, setIsBackupOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
   // Add / Edit / Convert Sentence Modal State
   const [isSentenceModalOpen, setIsSentenceModalOpen] = useState(false);
@@ -55,12 +62,17 @@ export default function App() {
     [],
     []
   );
+  const categories = useLiveQuery(
+    () => db.categories.orderBy('order').toArray(),
+    [],
+    []
+  );
 
   const currentLang = profile?.source_lang || 'en-US';
 
-  const handleToggleLanguage = async () => {
-    const nextLang = currentLang === 'en-US' ? 'it-IT' : 'en-US';
-    await switchSourceLanguage(nextLang);
+  const handleSelectLanguage = async (langCode) => {
+    if (langCode === currentLang) return;
+    await switchSourceLanguage(langCode);
   };
 
   const activeLangMeta =
@@ -70,14 +82,6 @@ export default function App() {
   const masteredCount = useMemo(
     () =>
       (allSentences || []).filter((s) => (s.times_spoken_irl || 0) >= 3).length,
-    [allSentences]
-  );
-
-  const existingCategories = useMemo(
-    () =>
-      Array.from(
-        new Set((allSentences || []).map((s) => s.category).filter(Boolean))
-      ),
     [allSentences]
   );
 
@@ -113,7 +117,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col max-w-md mx-auto border-x border-slate-900/80 relative">
       {/* Top App Bar */}
-      <header className="sticky top-0 z-30 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-orange-600 flex items-center justify-center font-black text-white text-sm shadow-md shadow-orange-600/30">
             NL
@@ -124,7 +128,9 @@ export default function App() {
             </h1>
             <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
               <Wrench className="w-3 h-3 text-orange-400" />
-              <span>The Hague • Offline Ready</span>
+              <span>
+                The Hague • {activeLangMeta.flag} {activeLangMeta.shortCode.toUpperCase()}
+              </span>
             </p>
           </div>
         </div>
@@ -143,30 +149,132 @@ export default function App() {
             </button>
           )}
 
-          {/* Export / Import Backup Modal Trigger */}
+          {/* Top Burger Menu Toggle Button */}
           <button
             type="button"
-            onClick={() => setIsBackupOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
-            title="Backup or Restore Local Database (JSON)"
+            onClick={() => setIsBurgerOpen((prev) => !prev)}
+            className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+              isBurgerOpen
+                ? 'bg-orange-600 text-white border-orange-500 shadow-sm'
+                : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-800'
+            }`}
+            aria-label="Open menu"
+            aria-expanded={isBurgerOpen}
           >
-            <Database className="w-3.5 h-3.5 text-orange-400" />
-            <span>Backup</span>
-          </button>
-
-          {/* Quick Source Language Switcher (EN <-> IT) */}
-          <button
-            type="button"
-            onClick={handleToggleLanguage}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
-            title="Switch prompt language (English / Italiano)"
-          >
-            <Globe className="w-3.5 h-3.5 text-orange-400" />
-            <span>
-              {activeLangMeta.flag} {activeLangMeta.shortCode.toUpperCase()}
-            </span>
+            {isBurgerOpen ? (
+              <X className="w-5 h-5" />
+            ) : (
+              <Menu className="w-5 h-5" />
+            )}
           </button>
         </div>
+
+        {/* Burger Dropdown Menu */}
+        {isBurgerOpen && (
+          <>
+            {/* Backdrop to close menu on outside tap */}
+            <div
+              className="fixed inset-0 top-[61px] bg-black/60 backdrop-blur-xs z-30"
+              onClick={() => setIsBurgerOpen(false)}
+            />
+
+            <div className="absolute top-full left-0 right-0 z-40 bg-slate-900 border-b border-slate-800 shadow-2xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-150">
+              {/* 1. Manage Categories & Time Brackets */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsBurgerOpen(false);
+                  setIsCategoryModalOpen(true);
+                }}
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-950/80 hover:bg-slate-950 border border-slate-800/90 hover:border-orange-500/40 text-left transition-all cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0">
+                    <Tag className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white flex items-center gap-2">
+                      <span>Manage Categories</span>
+                      <span className="px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[10px] font-semibold">
+                        {categories?.length || 0}
+                      </span>
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      Create, edit, or delete labels &amp; time brackets
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
+
+              {/* 2. Prompt / Translation Language Switcher */}
+              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/90 space-y-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
+                    <Globe className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white">
+                      Translation Language
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      Switch meaning &amp; audio language for cards
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {SUPPORTED_LANGUAGES.slice(0, 2).map((lang) => {
+                    const isSelected = currentLang === lang.code;
+                    return (
+                      <button
+                        key={lang.code}
+                        type="button"
+                        onClick={() => {
+                          handleSelectLanguage(lang.code);
+                          setIsBurgerOpen(false);
+                        }}
+                        className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-orange-600 text-white border-orange-500 shadow-xs'
+                            : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800'
+                        }`}
+                      >
+                        <span>{lang.flag}</span>
+                        <span>{lang.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 3. Backup & Restore Local Database */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsBurgerOpen(false);
+                  setIsBackupOpen(true);
+                }}
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-950/80 hover:bg-slate-950 border border-slate-800/90 hover:border-orange-500/40 text-left transition-all cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                    <Database className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white">
+                      Backup &amp; Restore Data
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      Export or import local database (.json)
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+          </>
+        )}
       </header>
 
       {/* Main Content */}
@@ -183,6 +291,7 @@ export default function App() {
             dailySentences={dailySentences}
             allSentences={allSentences}
             captures={allCaptures}
+            categories={categories}
             profile={profile}
             ttsState={ttsState}
             onAddSentence={handleOpenAddSentence}
@@ -193,6 +302,7 @@ export default function App() {
         ) : (
           <LibraryView
             allSentences={allSentences}
+            categories={categories}
             profile={profile}
             ttsState={ttsState}
             onAddSentence={handleOpenAddSentence}
@@ -262,9 +372,21 @@ export default function App() {
         onClose={handleCloseSentenceModal}
         initialSentence={editingSentence}
         captureToConvert={captureToConvert}
-        existingCategories={existingCategories}
+        categories={categories}
+        onOpenCategoryManager={() => {
+          setIsSentenceModalOpen(false);
+          setIsCategoryModalOpen(true);
+        }}
         profile={profile}
         ttsState={ttsState}
+      />
+
+      {/* Manage Categories & Time Brackets Modal */}
+      <CategoryManagerModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        categories={categories}
+        allSentences={allSentences}
       />
 
       {/* Local Database Export / Import Modal */}
@@ -278,3 +400,4 @@ export default function App() {
     </div>
   );
 }
+

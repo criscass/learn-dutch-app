@@ -7,7 +7,8 @@ import {
   RotateCcw,
   Info,
   Pencil,
-  Sparkles
+  Sparkles,
+  Clock
 } from 'lucide-react';
 import { ttsService } from '../services/ttsService';
 import {
@@ -15,17 +16,19 @@ import {
   undoSpokenInRealLife,
   toggleDailyQueueMembership
 } from '../db/packManager';
+import { CATEGORY_COLOR_PALETTE } from '../db/database';
 
-const CATEGORY_COLORS = {
-  'Arrival & Handover': 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-  'Housekeeping': 'bg-purple-500/15 text-purple-300 border-purple-500/30',
-  'Tech & Repairs': 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  'Front Desk & Guests': 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-  'Small Talk & Breaks': 'bg-pink-500/15 text-pink-300 border-pink-500/30'
+const FALLBACK_CATEGORY_COLORS = {
+  'Arrival & Handover': CATEGORY_COLOR_PALETTE.blue.badge,
+  'Housekeeping': CATEGORY_COLOR_PALETTE.purple.badge,
+  'Tech & Repairs': CATEGORY_COLOR_PALETTE.amber.badge,
+  'Front Desk & Guests': CATEGORY_COLOR_PALETTE.emerald.badge,
+  'Small Talk & Breaks': CATEGORY_COLOR_PALETTE.pink.badge
 };
 
 export default function SentenceCard({
   sentence,
+  categories = [],
   ttsState,
   sourceLang = 'en-US',
   index,
@@ -53,9 +56,17 @@ export default function SentenceCard({
   const isMastered = timesSpoken >= 3;
   const isInDailyQueue = sentence.in_daily_queue === 1;
 
-  const badgeStyle =
-    CATEGORY_COLORS[sentence.category] ||
-    'bg-slate-800 text-slate-300 border-slate-700';
+  const categoryMeta = categories.find((c) => c.name === sentence.category);
+  const badgeStyle = categoryMeta?.color
+    ? (CATEGORY_COLOR_PALETTE[categoryMeta.color] || CATEGORY_COLOR_PALETTE.slate).badge
+    : FALLBACK_CATEGORY_COLORS[sentence.category] ||
+      CATEGORY_COLOR_PALETTE.slate.badge;
+
+  const hasTimeBracket = Boolean(
+    categoryMeta?.has_time_bracket &&
+      categoryMeta?.start_time &&
+      categoryMeta?.end_time
+  );
 
   const handlePlayDutch = (rate) => {
     if (
@@ -116,14 +127,17 @@ export default function SentenceCard({
               {index + 1}
             </span>
           )}
-          <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${badgeStyle}`}>
-            {sentence.category}
+          <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1.5 ${badgeStyle}`}>
+            <span>{sentence.category}</span>
+            {hasTimeBracket && (
+              <span className="inline-flex items-center gap-0.5 text-[10px] opacity-85 border-l border-current/25 pl-1.5">
+                <Clock className="w-2.5 h-2.5" />
+                <span>
+                  {categoryMeta.start_time}&ndash;{categoryMeta.end_time}
+                </span>
+              </span>
+            )}
           </span>
-          {sentence.pack_id === 'custom' && (
-            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-300 border border-orange-500/30">
-              Custom
-            </span>
-          )}
         </div>
 
         {/* Right Side Controls: Spoken IRL Dots + Queue Toggle + Edit */}

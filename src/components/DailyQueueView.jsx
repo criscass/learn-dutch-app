@@ -15,6 +15,7 @@ export default function DailyQueueView({
   dailySentences = [],
   allSentences = [],
   captures = [],
+  categories = [],
   profile,
   ttsState,
   onAddSentence,
@@ -151,6 +152,7 @@ export default function DailyQueueView({
               key={sentence.id}
               index={idx}
               sentence={sentence}
+              categories={categories}
               ttsState={ttsState}
               sourceLang={profile?.source_lang || 'en-US'}
               onEdit={onEditSentence}

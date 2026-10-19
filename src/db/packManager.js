@@ -1,4 +1,4 @@
-import { db, DEFAULT_PROFILE } from './database';
+import { db, DEFAULT_PROFILE, DEFAULT_CATEGORIES } from './database';
 import hotelMaintenancePack from '../data/packs/hotel-maintenance.json';
 import { getShortLangCode } from '../config/languages';
 
@@ -7,7 +7,55 @@ export const BUILT_IN_PACKS = {
 };
 
 /**
- * Ensures the database is initialized with a default user profile
+ * Ensures default categories and any categories referenced by existing sentences exist in Dexie.
+ */
+export async function ensureCategoriesSeeded() {
+  const existingCategories = await db.categories.toArray();
+  const now = new Date().toISOString();
+
+  if (existingCategories.length === 0) {
+    await db.categories.bulkPut(
+      DEFAULT_CATEGORIES.map((cat) => ({
+        ...cat,
+        created_at: now
+      }))
+    );
+  }
+
+  // Also ensure any custom categories previously saved on sentences exist in db.categories
+  const currentCategories = await db.categories.toArray();
+  const knownNames = new Set(
+    currentCategories.map((c) => (c.name || '').trim().toLowerCase())
+  );
+  const allSentences = await db.sentences.toArray();
+  const extraCategories = [];
+  let maxOrder = currentCategories.reduce((max, c) => Math.max(max, c.order || 0), 0);
+
+  for (const s of allSentences) {
+    const catName = (s.category || '').trim();
+    if (catName && !knownNames.has(catName.toLowerCase())) {
+      knownNames.add(catName.toLowerCase());
+      maxOrder += 1;
+      extraCategories.push({
+        id: `cat-migrated-${maxOrder}-${Math.random().toString(36).slice(2, 6)}`,
+        name: catName,
+        has_time_bracket: false,
+        start_time: null,
+        end_time: null,
+        color: 'cyan',
+        order: maxOrder,
+        created_at: now
+      });
+    }
+  }
+
+  if (extraCategories.length > 0) {
+    await db.categories.bulkPut(extraCategories);
+  }
+}
+
+/**
+ * Ensures the database is initialized with a default user profile, categories,
  * and seeds the initial job pack if no sentences exist yet.
  */
 export async function initializeDatabase() {
@@ -33,7 +81,116 @@ export async function initializeDatabase() {
     }
   }
 
+  await ensureCategoriesSeeded();
+
   return profile;
+}
+
+/**
+ * Creates a new category or updates an existing category.
+ * If an existing category is renamed, all sentences associated with the old category name
+ * are automatically updated to the new category name.
+ */
+export async function saveCategory(categoryInput) {
+  const trimmedName = (categoryInput.name || '').trim();
+  if (!trimmedName) {
+    throw new Error('Category name is required.');
+  }
+
+  const hasTimeBracket = Boolean(categoryInput.has_time_bracket);
+  const startTime = hasTimeBracket ? (categoryInput.start_time || '').trim() : null;
+  const endTime = hasTimeBracket ? (categoryInput.end_time || '').trim() : null;
+
+  if (hasTimeBracket && (!startTime || !endTime)) {
+    throw new Error('Please choose both a start time and an end time, or select "No specific time".');
+  }
+
+  const allCategories = await db.categories.toArray();
+  const duplicate = allCategories.find(
+    (c) =>
+      c.id !== categoryInput.id &&
+      (c.name || '').trim().toLowerCase() === trimmedName.toLowerCase()
+  );
+
+  if (duplicate) {
+    throw new Error(`A category named "${trimmedName}" already exists.`);
+  }
+
+  const now = new Date().toISOString();
+  const existing = categoryInput.id ? await db.categories.get(categoryInput.id) : null;
+  const maxOrder = allCategories.reduce((max, c) => Math.max(max, c.order || 0), 0);
+
+  const record = {
+    id:
+      existing?.id ||
+      categoryInput.id ||
+      `cat-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    name: trimmedName,
+    has_time_bracket: hasTimeBracket,
+    start_time: startTime,
+    end_time: endTime,
+    color: categoryInput.color || existing?.color || 'cyan',
+    order: existing?.order ?? categoryInput.order ?? maxOrder + 1,
+    created_at: existing?.created_at || now
+  };
+
+  await db.transaction('rw', db.categories, db.sentences, async () => {
+    await db.categories.put(record);
+
+    // If renaming an existing category, update all sentences using the old name
+    if (existing && existing.name !== trimmedName) {
+      const matchingSentences = await db.sentences
+        .where('category')
+        .equals(existing.name)
+        .toArray();
+
+      if (matchingSentences.length > 0) {
+        const updatedSentences = matchingSentences.map((s) => ({
+          ...s,
+          category: trimmedName
+        }));
+        await db.sentences.bulkPut(updatedSentences);
+      }
+    }
+  });
+
+  return record;
+}
+
+/**
+ * Deletes a category by ID and reassigns any sentences using it to `reassignToCategoryName`.
+ */
+export async function deleteCategory(categoryId, reassignToCategoryName = null) {
+  if (!categoryId) return;
+
+  const allCategories = await db.categories.toArray();
+  if (allCategories.length <= 1) {
+    throw new Error('You must keep at least one category.');
+  }
+
+  const targetCat = await db.categories.get(categoryId);
+  if (!targetCat) return;
+
+  const remaining = allCategories.filter((c) => c.id !== categoryId);
+  const fallbackName =
+    (reassignToCategoryName || '').trim() || remaining[0]?.name || 'General';
+
+  await db.transaction('rw', db.categories, db.sentences, async () => {
+    const affectedSentences = await db.sentences
+      .where('category')
+      .equals(targetCat.name)
+      .toArray();
+
+    if (affectedSentences.length > 0) {
+      const reassigned = affectedSentences.map((s) => ({
+        ...s,
+        category: fallbackName
+      }));
+      await db.sentences.bulkPut(reassigned);
+    }
+
+    await db.categories.delete(categoryId);
+  });
 }
 
 /**
@@ -314,24 +471,26 @@ export async function setQuickCaptureProcessed(captureId, processed = true) {
 }
 
 /**
- * Exports the entire local Dexie database (user_profile, sentences, quick_captures)
+ * Exports the entire local Dexie database (user_profile, sentences, quick_captures, categories)
  * into a structured JSON object and triggers a downloadable .json backup file.
  */
 export async function exportDatabaseAsJson() {
-  const [userProfile, sentences, quickCaptures] = await Promise.all([
+  const [userProfile, sentences, quickCaptures, categories] = await Promise.all([
     db.user_profile.toArray(),
     db.sentences.toArray(),
-    db.quick_captures.toArray()
+    db.quick_captures.toArray(),
+    db.categories.toArray()
   ]);
 
   const backupPayload = {
     app: 'DutchWorkdayCompanion',
-    schema_version: 1,
+    schema_version: 2,
     exported_at: new Date().toISOString(),
     data: {
       user_profile: userProfile,
       sentences,
-      quick_captures: quickCaptures
+      quick_captures: quickCaptures,
+      categories
     }
   };
 
@@ -352,7 +511,8 @@ export async function exportDatabaseAsJson() {
   return {
     filename,
     sentencesCount: sentences.length,
-    capturesCount: quickCaptures.length
+    capturesCount: quickCaptures.length,
+    categoriesCount: categories.length
   };
 }
 
@@ -368,7 +528,7 @@ export async function importDatabaseFromJson(rawInput, options = { mode: 'merge'
     throw new Error('Invalid JSON file format.');
   }
 
-  // Support both full database backup format ({ data: { user_profile, sentences, quick_captures } })
+  // Support both full database backup format ({ data: { user_profile, sentences, quick_captures, categories } })
   // and standalone job pack format ({ pack_id, sentences: [...] })
   const isFullBackup = Boolean(parsed.data && Array.isArray(parsed.data.sentences));
   const isJobPack = Boolean(!isFullBackup && Array.isArray(parsed.sentences));
@@ -382,100 +542,119 @@ export async function importDatabaseFromJson(rawInput, options = { mode: 'merge'
   let capturesImported = 0;
   let profileRestored = false;
 
-  await db.transaction('rw', db.user_profile, db.sentences, db.quick_captures, async () => {
-    if (mode === 'replace' && isFullBackup) {
-      await Promise.all([
-        db.user_profile.clear(),
-        db.sentences.clear(),
-        db.quick_captures.clear()
-      ]);
-    }
-
-    if (isFullBackup) {
-      const { user_profile: profiles = [], sentences = [], quick_captures: captures = [] } = parsed.data;
-
-      if (Array.isArray(profiles) && profiles.length > 0) {
-        await db.user_profile.bulkPut(profiles);
-        profileRestored = true;
+  await db.transaction(
+    'rw',
+    db.user_profile,
+    db.sentences,
+    db.quick_captures,
+    db.categories,
+    async () => {
+      if (mode === 'replace' && isFullBackup) {
+        await Promise.all([
+          db.user_profile.clear(),
+          db.sentences.clear(),
+          db.quick_captures.clear(),
+          db.categories.clear()
+        ]);
       }
 
-      if (Array.isArray(sentences) && sentences.length > 0) {
-        if (mode === 'merge') {
-          // When merging, preserve the higher spoken count / mastery if a sentence exists locally
-          const existingMap = new Map(
-            (await db.sentences.toArray()).map((s) => [s.id, s])
-          );
-          const mergedSentences = sentences.map((incoming) => {
-            const existing = existingMap.get(incoming.id);
-            if (!existing) return incoming;
-            const bestSpoken = Math.max(
-              existing.times_spoken_irl || 0,
-              incoming.times_spoken_irl || 0
-            );
-            const bestMastery = Math.max(
-              existing.mastery_level || 0,
-              incoming.mastery_level || 0,
-              bestSpoken >= 3 ? 5 : bestSpoken
-            );
-            return {
-              ...existing,
-              ...incoming,
-              times_spoken_irl: bestSpoken,
-              mastery_level: bestMastery,
-              last_practiced:
-                incoming.last_practiced && existing.last_practiced
-                  ? incoming.last_practiced > existing.last_practiced
-                    ? incoming.last_practiced
-                    : existing.last_practiced
-                  : incoming.last_practiced || existing.last_practiced
-            };
-          });
-          await db.sentences.bulkPut(mergedSentences);
-        } else {
-          await db.sentences.bulkPut(sentences);
+      if (isFullBackup) {
+        const {
+          user_profile: profiles = [],
+          sentences = [],
+          quick_captures: captures = [],
+          categories = []
+        } = parsed.data;
+
+        if (Array.isArray(profiles) && profiles.length > 0) {
+          await db.user_profile.bulkPut(profiles);
+          profileRestored = true;
         }
-        sentencesImported = sentences.length;
+
+        if (Array.isArray(categories) && categories.length > 0) {
+          await db.categories.bulkPut(categories);
+        }
+
+        if (Array.isArray(sentences) && sentences.length > 0) {
+          if (mode === 'merge') {
+            // When merging, preserve the higher spoken count / mastery if a sentence exists locally
+            const existingMap = new Map(
+              (await db.sentences.toArray()).map((s) => [s.id, s])
+            );
+            const mergedSentences = sentences.map((incoming) => {
+              const existing = existingMap.get(incoming.id);
+              if (!existing) return incoming;
+              const bestSpoken = Math.max(
+                existing.times_spoken_irl || 0,
+                incoming.times_spoken_irl || 0
+              );
+              const bestMastery = Math.max(
+                existing.mastery_level || 0,
+                incoming.mastery_level || 0,
+                bestSpoken >= 3 ? 5 : bestSpoken
+              );
+              return {
+                ...existing,
+                ...incoming,
+                times_spoken_irl: bestSpoken,
+                mastery_level: bestMastery,
+                last_practiced:
+                  incoming.last_practiced && existing.last_practiced
+                    ? incoming.last_practiced > existing.last_practiced
+                      ? incoming.last_practiced
+                      : existing.last_practiced
+                    : incoming.last_practiced || existing.last_practiced
+              };
+            });
+            await db.sentences.bulkPut(mergedSentences);
+          } else {
+            await db.sentences.bulkPut(sentences);
+          }
+          sentencesImported = sentences.length;
+        }
+
+        if (Array.isArray(captures) && captures.length > 0) {
+          await db.quick_captures.bulkPut(captures);
+          capturesImported = captures.length;
+        }
+      } else if (isJobPack) {
+        const profile = (await db.user_profile.get('default')) || DEFAULT_PROFILE;
+        const shortLang = getShortLangCode(profile.source_lang);
+        const packId = parsed.pack_id || 'custom-pack';
+        const now = new Date().toISOString();
+
+        const existingMap = new Map(
+          (await db.sentences.toArray()).map((s) => [s.id, s])
+        );
+
+        const formattedSentences = parsed.sentences.map((s, idx) => {
+          const id = s.id || `${packId}-${idx + 1}`;
+          const existing = existingMap.get(id);
+          return {
+            id,
+            pack_id: s.pack_id || packId,
+            source_text:
+              s.source_text || s.translations?.[shortLang] || s.translations?.en || '',
+            translations: s.translations || {},
+            target_text: s.target_text,
+            category: s.category || 'General',
+            checkpoint_id: s.checkpoint_id || 'any',
+            times_spoken_irl: existing?.times_spoken_irl ?? s.times_spoken_irl ?? 0,
+            mastery_level: existing?.mastery_level ?? s.mastery_level ?? 0,
+            in_daily_queue: existing?.in_daily_queue ?? 0,
+            last_practiced: existing?.last_practiced ?? s.last_practiced ?? null,
+            created_at: existing?.created_at ?? s.created_at ?? now,
+            notes: s.notes || existing?.notes || ''
+          };
+        });
+
+        await db.sentences.bulkPut(formattedSentences);
+        sentencesImported = formattedSentences.length;
       }
-
-      if (Array.isArray(captures) && captures.length > 0) {
-        await db.quick_captures.bulkPut(captures);
-        capturesImported = captures.length;
-      }
-    } else if (isJobPack) {
-      const profile = (await db.user_profile.get('default')) || DEFAULT_PROFILE;
-      const shortLang = getShortLangCode(profile.source_lang);
-      const packId = parsed.pack_id || 'custom-pack';
-      const now = new Date().toISOString();
-
-      const existingMap = new Map(
-        (await db.sentences.toArray()).map((s) => [s.id, s])
-      );
-
-      const formattedSentences = parsed.sentences.map((s, idx) => {
-        const id = s.id || `${packId}-${idx + 1}`;
-        const existing = existingMap.get(id);
-        return {
-          id,
-          pack_id: s.pack_id || packId,
-          source_text:
-            s.source_text || s.translations?.[shortLang] || s.translations?.en || '',
-          translations: s.translations || {},
-          target_text: s.target_text,
-          category: s.category || 'General',
-          checkpoint_id: s.checkpoint_id || 'any',
-          times_spoken_irl: existing?.times_spoken_irl ?? s.times_spoken_irl ?? 0,
-          mastery_level: existing?.mastery_level ?? s.mastery_level ?? 0,
-          in_daily_queue: existing?.in_daily_queue ?? 0,
-          last_practiced: existing?.last_practiced ?? s.last_practiced ?? null,
-          created_at: existing?.created_at ?? s.created_at ?? now,
-          notes: s.notes || existing?.notes || ''
-        };
-      });
-
-      await db.sentences.bulkPut(formattedSentences);
-      sentencesImported = formattedSentences.length;
     }
-  });
+  );
+
+  await ensureCategoriesSeeded();
 
   // Ensure daily queue has items after import
   const queueCount = await db.sentences.where('in_daily_queue').equals(1).count();
@@ -491,4 +670,5 @@ export async function importDatabaseFromJson(rawInput, options = { mode: 'merge'
     mode
   };
 }
+
 

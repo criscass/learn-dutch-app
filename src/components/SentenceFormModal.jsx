@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   X,
   Volume2,
@@ -11,26 +11,22 @@ import {
   Clock,
   StickyNote,
   Zap,
-  AlertCircle
+  AlertCircle,
+  Settings2,
+  CalendarOff
 } from 'lucide-react';
 import { ttsService } from '../services/ttsService';
 import { saveSentence, deleteSentence } from '../db/packManager';
 import { SUPPORTED_LANGUAGES } from '../config/languages';
-
-const DEFAULT_CATEGORIES = [
-  'Arrival & Handover',
-  'Housekeeping',
-  'Tech & Repairs',
-  'Front Desk & Guests',
-  'Small Talk & Breaks'
-];
+import { DEFAULT_CATEGORIES } from '../db/database';
 
 export default function SentenceFormModal({
   isOpen,
   onClose,
   initialSentence = null,
   captureToConvert = null,
-  existingCategories = [],
+  categories = [],
+  onOpenCategoryManager,
   profile,
   ttsState
 }) {
@@ -39,19 +35,19 @@ export default function SentenceFormModal({
   const activeLangMeta =
     SUPPORTED_LANGUAGES.find((l) => l.code === sourceLang) || SUPPORTED_LANGUAGES[0];
 
-  const allCategoryOptions = Array.from(
-    new Set([
-      ...DEFAULT_CATEGORIES,
-      ...existingCategories.filter((c) => c && c !== 'All')
-    ])
+  const availableCategories = useMemo(
+    () => (categories.length > 0 ? categories : DEFAULT_CATEGORIES),
+    [categories]
   );
+
+  const defaultCategoryName =
+    availableCategories.find((c) => c.name === 'Tech & Repairs')?.name ||
+    availableCategories[0]?.name ||
+    'General';
 
   const [targetText, setTargetText] = useState('');
   const [sourceText, setSourceText] = useState('');
-  const [category, setCategory] = useState(DEFAULT_CATEGORIES[2]); // Tech & Repairs default
-  const [isCustomCategory, setIsCustomCategory] = useState(false);
-  const [customCategory, setCustomCategory] = useState('');
-  const [checkpointId, setCheckpointId] = useState('any');
+  const [category, setCategory] = useState(defaultCategoryName);
   const [notes, setNotes] = useState('');
   const [inDailyQueue, setInDailyQueue] = useState(true);
   const [error, setError] = useState(null);
@@ -66,42 +62,38 @@ export default function SentenceFormModal({
     if (initialSentence) {
       setTargetText(initialSentence.target_text || '');
       setSourceText(initialSentence.source_text || '');
-      const initCat = initialSentence.category || 'Tech & Repairs';
-      if (allCategoryOptions.includes(initCat)) {
-        setCategory(initCat);
-        setIsCustomCategory(false);
-        setCustomCategory('');
-      } else {
-        setIsCustomCategory(true);
-        setCustomCategory(initCat);
-      }
-      setCheckpointId(initialSentence.checkpoint_id || 'any');
+      setCategory(initialSentence.category || defaultCategoryName);
       setNotes(initialSentence.notes || '');
       setInDailyQueue(initialSentence.in_daily_queue === 1);
     } else if (captureToConvert) {
-      // Pre-populate from Quick Capture
       setTargetText('');
       setSourceText(captureToConvert.raw_text || '');
-      setCategory('Tech & Repairs');
-      setIsCustomCategory(false);
-      setCustomCategory('');
-      setCheckpointId('any');
+      setCategory(defaultCategoryName);
       setNotes('');
       setInDailyQueue(true);
     } else {
       setTargetText('');
       setSourceText('');
-      setCategory('Tech & Repairs');
-      setIsCustomCategory(false);
-      setCustomCategory('');
-      setCheckpointId('any');
+      setCategory(defaultCategoryName);
       setNotes('');
       setInDailyQueue(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, initialSentence, captureToConvert]);
 
+  // If the currently selected category was deleted or renamed in Category Manager, keep valid selection
+  useEffect(() => {
+    if (!isOpen) return;
+    const exists = availableCategories.some((c) => c.name === category);
+    if (!exists && availableCategories.length > 0) {
+      setCategory(availableCategories[0].name);
+    }
+  }, [availableCategories, category, isOpen]);
+
   if (!isOpen) return null;
+
+  const selectedCategoryObj =
+    availableCategories.find((c) => c.name === category) || null;
 
   const previewId = initialSentence?.id || 'form-preview';
 
@@ -159,9 +151,7 @@ export default function SentenceFormModal({
     e.preventDefault();
     setError(null);
 
-    const finalCategory = isCustomCategory
-      ? customCategory.trim()
-      : category.trim();
+    const finalCategory = (category || '').trim();
 
     if (!targetText.trim()) {
       setError('Please enter the Dutch sentence.');
@@ -172,7 +162,7 @@ export default function SentenceFormModal({
       return;
     }
     if (!finalCategory) {
-      setError('Please select or enter a category.');
+      setError('Please select a category.');
       return;
     }
 
@@ -184,7 +174,7 @@ export default function SentenceFormModal({
           target_text: targetText,
           source_text: sourceText,
           category: finalCategory,
-          checkpoint_id: checkpointId,
+          checkpoint_id: initialSentence?.checkpoint_id || 'any',
           notes,
           in_daily_queue: inDailyQueue ? 1 : 0
         },
@@ -214,11 +204,6 @@ export default function SentenceFormModal({
       setIsSaving(false);
     }
   };
-
-  const checkpoints = [
-    { id: 'any', label: 'Any Shift Moment' },
-    ...(profile?.checkpoints || [])
-  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-xs p-0 sm:p-3">
@@ -378,94 +363,93 @@ export default function SentenceFormModal({
             />
           </div>
 
-          {/* Dynamic Category Selection */}
+          {/* Managed Category Selection */}
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-              <Tag className="w-3.5 h-3.5 text-orange-400" />
-              <span>Workplace Category</span>
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5 text-orange-400" />
+                <span>Workplace Category</span>
+              </label>
+
+              {onOpenCategoryManager && (
+                <button
+                  type="button"
+                  onClick={onOpenCategoryManager}
+                  className="flex items-center gap-1 text-[11px] font-semibold text-orange-400 hover:text-orange-300 transition-colors cursor-pointer"
+                >
+                  <Settings2 className="w-3 h-3" />
+                  <span>Manage Categories</span>
+                </button>
+              )}
+            </div>
 
             <div className="flex flex-wrap gap-1.5">
-              {allCategoryOptions.map((cat) => {
-                const isSelected = !isCustomCategory && category === cat;
+              {availableCategories.map((cat) => {
+                const isSelected = category === cat.name;
                 return (
                   <button
-                    key={cat}
+                    key={cat.id || cat.name}
                     type="button"
-                    onClick={() => {
-                      setIsCustomCategory(false);
-                      setCategory(cat);
-                    }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    onClick={() => setCategory(cat.name)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
                       isSelected
                         ? 'bg-orange-600 text-white border-orange-500 shadow-xs'
-                        : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
+                        : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white hover:border-slate-700'
                     }`}
                   >
-                    {cat}
+                    <span>{cat.name}</span>
+                    {cat.has_time_bracket && cat.start_time && cat.end_time && (
+                      <span
+                        className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                          isSelected
+                            ? 'bg-orange-700/80 text-orange-100'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {cat.start_time}&ndash;{cat.end_time}
+                      </span>
+                    )}
                   </button>
                 );
               })}
-
-              <button
-                type="button"
-                onClick={() => setIsCustomCategory(true)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1 transition-all cursor-pointer ${
-                  isCustomCategory
-                    ? 'bg-orange-600 text-white border-orange-500 shadow-xs'
-                    : 'bg-slate-950 text-orange-400 border-slate-800 hover:border-orange-500/40'
-                }`}
-              >
-                <Plus className="w-3 h-3" />
-                <span>Custom</span>
-              </button>
             </div>
 
-            {isCustomCategory && (
-              <input
-                type="text"
-                value={customCategory}
-                onChange={(e) => setCustomCategory(e.target.value)}
-                placeholder="Enter custom category (e.g., HVAC & Plumbing, Safety)"
-                className="w-full rounded-xl bg-slate-950 border border-orange-500/50 focus:border-orange-500 focus:outline-none px-3 py-2 text-xs text-white placeholder:text-slate-500"
-                autoFocus
-              />
+            {/* Selected Category Time Bracket Info */}
+            {selectedCategoryObj && (
+              <div className="flex items-center gap-1.5 text-[11px] px-1">
+                {selectedCategoryObj.has_time_bracket &&
+                selectedCategoryObj.start_time &&
+                selectedCategoryObj.end_time ? (
+                  <span className="inline-flex items-center gap-1 text-orange-300 font-medium">
+                    <Clock className="w-3 h-3 text-orange-400" />
+                    <span>
+                      Scheduled time bracket: {selectedCategoryObj.start_time} &ndash;{' '}
+                      {selectedCategoryObj.end_time}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-slate-400">
+                    <CalendarOff className="w-3 h-3 text-slate-500" />
+                    <span>No specific time bracket for this category</span>
+                  </span>
+                )}
+              </div>
             )}
           </div>
 
-          {/* Shift Checkpoint & Notes */}
-          <div className="grid grid-cols-1 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-orange-400" />
-                <span>Shift Checkpoint</span>
-              </label>
-              <select
-                value={checkpointId}
-                onChange={(e) => setCheckpointId(e.target.value)}
-                className="w-full rounded-xl bg-slate-950 border border-slate-800 focus:border-orange-500 focus:outline-none px-3 py-2 text-xs font-medium text-slate-200"
-              >
-                {checkpoints.map((cp) => (
-                  <option key={cp.id} value={cp.id}>
-                    {cp.label} {cp.time ? `(${cp.time})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                <StickyNote className="w-3.5 h-3.5 text-orange-400" />
-                <span>Pronunciation / Context Tip (Optional)</span>
-              </label>
-              <input
-                type="text"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g. 'storing' = malfunction/fault. Useful with Front Desk."
-                className="w-full rounded-xl bg-slate-950 border border-slate-800 focus:border-orange-500 focus:outline-none px-3 py-2 text-xs text-slate-200 placeholder:text-slate-600"
-              />
-            </div>
+          {/* Notes */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              <StickyNote className="w-3.5 h-3.5 text-orange-400" />
+              <span>Pronunciation / Context Tip (Optional)</span>
+            </label>
+            <input
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g. 'storing' = malfunction/fault. Useful with Front Desk."
+              className="w-full rounded-xl bg-slate-950 border border-slate-800 focus:border-orange-500 focus:outline-none px-3 py-2 text-xs text-slate-200 placeholder:text-slate-600"
+            />
           </div>
 
           {/* Pin to Today's Daily Queue Toggle */}
@@ -551,3 +535,4 @@ export default function SentenceFormModal({
     </div>
   );
 }
+

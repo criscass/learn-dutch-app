@@ -22,6 +22,7 @@ const MASTERY_FILTERS = [
 
 export default function LibraryView({
   allSentences = [],
+  categories = [],
   profile,
   ttsState,
   onAddSentence,
@@ -31,12 +32,12 @@ export default function LibraryView({
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [masteryFilter, setMasteryFilter] = useState('all');
 
-  const categories = useMemo(() => {
-    const unique = Array.from(
-      new Set(allSentences.map((s) => s.category).filter(Boolean))
-    );
+  const categoryFilterOptions = useMemo(() => {
+    const managedNames = categories.map((c) => c.name).filter(Boolean);
+    const sentenceNames = allSentences.map((s) => s.category).filter(Boolean);
+    const unique = Array.from(new Set([...managedNames, ...sentenceNames]));
     return ['All', ...unique];
-  }, [allSentences]);
+  }, [categories, allSentences]);
 
   const countsByMastery = useMemo(() => {
     let newCount = 0;
@@ -188,7 +189,7 @@ export default function LibraryView({
         {/* Category Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
           <Filter className="w-3.5 h-3.5 text-slate-500 shrink-0 ml-1 mr-0.5" />
-          {categories.map((cat) => {
+          {categoryFilterOptions.map((cat) => {
             const isActive = selectedCategory === cat;
             return (
               <button
@@ -233,6 +234,7 @@ export default function LibraryView({
             <SentenceCard
               key={sentence.id}
               sentence={sentence}
+              categories={categories}
               ttsState={ttsState}
               sourceLang={profile?.source_lang || 'en-US'}
               onEdit={onEditSentence}
